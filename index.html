@@ -8,6 +8,9 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
 <style type="text/css">
@@ -27,8 +30,7 @@ html, body, #map {
 
 <script>
 
-
- var map = L.map('map',{
+var map = L.map('map',{
     center: [33.5843, -101.8783],
     zoom: 6
     });
@@ -38,11 +40,32 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18
 }).addTo(map);
 
-function addDataToMap(data, map) {
-    var dataLayer = L.geoJson(data);
+function addDataToMap(data, map, filterSelection) {
+    var dataLayer = L.geoJson(data, {filter: filterSelection});
     dataLayer.addTo(map);
 }
 
-$.getJSON("test.geojson", function(data) { addDataToMap(data, map); });
+$.getJSON("test.geojson", function(data) { addDataToMap(data, map, userFilter); });
+
+
+function userFilter(feature) {
+  if (  feature.properties["Medical Degree"] === "1" && 
+        feature.properties["State"] === "Texas") return true
+}
+
+var geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false
+    })
+    .on('markgeocode', function(e) {
+        var bbox = e.geocode.bbox;
+        var poly = L.polygon([
+             bbox.getSouthEast(),
+             bbox.getNorthEast(),
+             bbox.getNorthWest(),
+             bbox.getSouthWest()]);
+        map.fitBounds(poly.getBounds());
+        })
+    .addTo(map);
+//L.circle(location, radius).addTo(map);
 
 </script>

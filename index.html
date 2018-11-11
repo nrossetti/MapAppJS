@@ -13,22 +13,37 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-<style type="text/css">
-body {
-    padding: 0;
-    margin: 0;
+<style>
+.container{
+  position: relative;
+  width: 100%;
 }
-html, body, #map {
-    height: 100%;
-    width: 100vw;
+#map{
+    width:90%;
+    height:90%;
+}
+.mainMenu {
+    padding: 6px 8px;
+    font: 14px/16px Arial, Helvetica, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
 }
 </style>
 
-<body>
+<body>  
+    <div class="container">
+        <h1>mapApp</h1>
 		<div id="map"></div>
+    </div>
 </body>
 
 <script>
+var dataLayer;
+var jsonData;
+var zipcode;
+var state;
 
 var map = L.map('map',{
     center: [33.5843, -101.8783],
@@ -40,19 +55,31 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18
 }).addTo(map);
 
-function addDataToMap(data, map, filterSelection) {
-    var dataLayer = L.geoJson(data, {filter: filterSelection});
+map.doubleClickZoom.disable(); 
+
+function dataToMap(data, map, filterSelection) {
+   if(dataLayer!=undefined)
+        map.removeLayer(dataLayer);
+    dataLayer = L.geoJson(data, {filter: filterSelection});
     dataLayer.addTo(map);
 }
 
-$.getJSON("test.geojson", function(data) { addDataToMap(data, map, userFilter); });
-
+$.getJSON("test.geojson", function(data) { jsonData = data;  dataToMap(data, map, userFilter);});
 
 function userFilter(feature) {
-  if (  feature.properties["Medical Degree"] === "1" && 
-        feature.properties["State"] === "Texas") return true
+if(state!=undefined)   
+    if(state=="all")
+        return true;
+    else if(feature.properties["State"] == state) {
+            return true;
+        }
+        else
+        {
+           return false;
+        }
+else
+    return true;
 }
-
 var geocoder = L.Control.geocoder({
         defaultMarkGeocode: false
     })
@@ -65,7 +92,57 @@ var geocoder = L.Control.geocoder({
              bbox.getSouthWest()]);
         map.fitBounds(poly.getBounds());
         })
-    .addTo(map);
-//L.circle(location, radius).addTo(map);
+    .addTo(map)
 
+var mainMenu = L.Control.extend({
+            options: {
+                position: 'topright'
+            },
+
+            onAdd: function (map) {
+                this._div = L.DomUtil.create('div', 'mainMenu');
+                this._div.innerHTML = '<h3>Find Something</h3>';
+                this._div.innerHTML += '<form id="form" class="form" onsubmit="submitForm()">' ;
+                this._div.innerHTML += '<Label>State: </Label><select name="state" id="state">'+
+                        '<option value="All">All' +
+                        '<option value="Texas">Texas' +
+                        '<option value="California">California' +
+                        '<option value="New York">New York' +
+                        '</select>';
+                this._div.innerHTML += '<br>or<br>';
+                 this._div.innerHTML += '<Label>ZIP Code: </Label><input type="text" pattern="[0-9]{5}" style="width:75px" title="zipcode" id="zipcode"/>'
+                 this._div.innerHTML += '<br><Label>Radius: </Label><select name="radius" id="radius">'+
+                        '<option value="">No Limit' +
+                        '<option value="10">10 miles' +
+                        '<option value="50">50 miles' +
+                        '<option value="100">100 miles' +
+                        '<option value="200">200 miles' +
+                        '<option value="500">500 miles' +
+                        '</select>'
+                 this._div.innerHTML += '<hr>'
+                 this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
+                 this._div.innerHTML += '<input type="checkbox" id="hospital"><Label>Hospital</Label>';
+                this._div.innerHTML += '<br><br><input type="submit" id="submit" value="Update Map" onclick="submitForm()""></form>';
+                return this._div;        
+            }, 
+        });
+        map.addControl(new mainMenu());
+
+function submitForm(){
+    state = $("#state").val();
+    if(zipcode)
+        zipcode = $("#zipcode").val();
+    else
+        zipcode = null;
+    if($("#medical").checked== true)medical = true;
+    else medical=false;
+    if($("#hospital").checked== true)hospital = true;
+    else hospital=false;
+    alert(state+"\n"+zipcode+"\n"+medical+"\n"+hospital);
+        if(zipcode){
+            dataToMap(jsonData, map, userFilter);
+            }
+            else if(state)
+            dataToMap(jsonData, map, userFilter);
+}
 </script>

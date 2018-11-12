@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
 <style>
@@ -22,7 +24,7 @@
     width:90%;
     height:90%;
 }
-.mainMenu {
+.mainMenu, .resultTable{
     padding: 6px 8px;
     font: 14px/16px Arial, Helvetica, sans-serif;
     background: white;
@@ -44,6 +46,7 @@ var dataLayer;
 var jsonData;
 var zipcode;
 var state;
+var medical = false;
 
 var map = L.map('map',{
     center: [33.5843, -101.8783],
@@ -60,26 +63,114 @@ map.doubleClickZoom.disable();
 function dataToMap(data, map, filterSelection) {
    if(dataLayer!=undefined)
         map.removeLayer(dataLayer);
-    dataLayer = L.geoJson(data, {filter: filterSelection});
+    dataLayer = L.geoJson(data, {filter: filterSelection, onEachFeature: onEachFeature});
     dataLayer.addTo(map);
 }
 
-$.getJSON("test.geojson", function(data) { jsonData = data;  dataToMap(data, map, userFilter);});
 
 function userFilter(feature) {
-if(state!=undefined)   
-    if(state=="all")
-        return true;
-    else if(feature.properties["State"] == state) {
-            return true;
-        }
+    if(medical)
+        if(feature.properties["Medical Degree"]=='0')
+            return false;
+
+    if(zipcode==undefined||zipcode=="")
+        if(state!=undefined)
+            if(state=="All")
+                return true;
+             else if(feature.properties["State"] == state) 
+                    return true;
+                else
+                    return false;
         else
-        {
-           return false;
-        }
-else
-    return true;
+            return true;
+    else
+        if(feature.properties["zipcode"] == zipcode)
+            return true;
+        else
+            return false;
 }
+
+function onEachFeature(feature, layer) {
+  layer.bindPopup('<b>'+feature.properties["Institution Name"]+'</b><br>'+
+    feature.properties["City"]+', '+feature.properties["State"]+'<br>'+
+    '<a>'+feature.properties["Institution Website"]+'</a><br>'
+    );
+    layer.on('mouseover', function (e) {
+            this.openPopup();
+        });
+    layer.on('mouseout', function (e) {
+        this.closePopup();
+        });
+     layer.on('mousedown', function (e) {
+        });
+     layer.on('mouseup', function (e) {
+        alert("clicked!");
+        });
+}
+
+function submitForm(){
+    state = $("#state").val();
+    zipcode = $("#zipcode").val();
+    medical = $('#medical').prop('checked');
+    displayTable(getFeaturesInView());
+    alert(state+"\n"+zipcode+"\n"+medical+"\n");
+        if(zipcode){
+            dataToMap(jsonData, map, userFilter);
+            }
+            else if(state)
+            dataToMap(jsonData, map, userFilter);
+}
+
+function getFeaturesInView() {
+  var features = [];
+  dataLayer.eachLayer( function(layer) {
+    if(layer instanceof L.Marker) {
+      if(map.getBounds().contains(layer.getLatLng())) {
+        features.push(layer.feature);
+      }
+    }
+  });
+  return features;
+}
+
+function displayTable(features){
+
+    var featuresInView = features;
+
+    if(resultTable!==undefined)
+        resultTable.removeFrom(map);
+
+    var resultTable = L.Control.extend({
+            options: {
+                position: 'bottomleft'
+            },
+
+            onAdd: function (map) {
+                this._div = L.DomUtil.create('div', 'resultTable');
+                this._div.innerHTML = '<h3>Find Something</h3>';
+                this._div.innerHTML += '<table id="resultTable"><tr><th>Name</th></tr>';
+                if(featuresInView!==undefined)
+                {
+                    this._div.innerHTML += '<tr><td>1</td></tr>';
+                }
+                else
+                {
+                    this._div.innerHTML += '<tr><td>default table</td></tr>';
+                }
+                this._div.innerHTML += '</table>';
+                return this._div;     
+            },
+            onRemove: function (map) {
+            // Remove reference from map
+                delete map.resultTable;
+             },
+        });
+        map.addControl(new resultTable());
+}
+//End of functions 
+
+$.getJSON("test.geojson", function(data) { jsonData = data;  dataToMap(data, map, userFilter);});
+
 var geocoder = L.Control.geocoder({
         defaultMarkGeocode: false
     })
@@ -101,7 +192,7 @@ var mainMenu = L.Control.extend({
 
             onAdd: function (map) {
                 this._div = L.DomUtil.create('div', 'mainMenu');
-                this._div.innerHTML = '<h3>Find Something</h3>';
+                this._div.innerHTML = '<h3>Filter Institutions</h3>';
                 this._div.innerHTML += '<form id="form" class="form" onsubmit="submitForm()">' ;
                 this._div.innerHTML += '<Label>State: </Label><select name="state" id="state">'+
                         '<option value="All">All' +
@@ -119,30 +210,33 @@ var mainMenu = L.Control.extend({
                         '<option value="200">200 miles' +
                         '<option value="500">500 miles' +
                         '</select>'
-                 this._div.innerHTML += '<hr>'
-                 this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
-                 this._div.innerHTML += '<input type="checkbox" id="hospital"><Label>Hospital</Label>';
-                this._div.innerHTML += '<br><br><input type="submit" id="submit" value="Update Map" onclick="submitForm()""></form>';
+                this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
+                this._div.innerHTML += '<hr>'
+                this._div.innerHTML += '<h3>Filter Details</h3>';
+                this._div.innerHTML += '<Label>State: </Label><select name="state" id="state">'+
+                        '<option value="All">All' +
+                        '<option value="Texas">Texas' +
+                        '<option value="California">California' +
+                        '<option value="New York">New York' +
+                        '</select>';
+                this._div.innerHTML += '<br>or<br>';
+                this._div.innerHTML += '<Label>ZIP Code: </Label><input type="text" pattern="[0-9]{5}" style="width:75px" title="zipcode" id="zipcode"/>'
+                 this._div.innerHTML += '<br><Label>Radius: </Label><select name="radius" id="radius">'+
+                        '<option value="">No Limit' +
+                        '<option value="10">10 miles' +
+                        '<option value="50">50 miles' +
+                        '<option value="100">100 miles' +
+                        '<option value="200">200 miles' +
+                        '<option value="500">500 miles' +
+                        '</select>'
+                this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
+                this._div.innerHTML += '<hr>'
+                this._div.innerHTML += '<br><input type="submit" id="submit" value="Update Map" onclick="submitForm()""></form>';
                 return this._div;        
             }, 
         });
         map.addControl(new mainMenu());
 
-function submitForm(){
-    state = $("#state").val();
-    if(zipcode)
-        zipcode = $("#zipcode").val();
-    else
-        zipcode = null;
-    if($("#medical").checked== true)medical = true;
-    else medical=false;
-    if($("#hospital").checked== true)hospital = true;
-    else hospital=false;
-    alert(state+"\n"+zipcode+"\n"+medical+"\n"+hospital);
-        if(zipcode){
-            dataToMap(jsonData, map, userFilter);
-            }
-            else if(state)
-            dataToMap(jsonData, map, userFilter);
-}
+displayTable();
+
 </script>

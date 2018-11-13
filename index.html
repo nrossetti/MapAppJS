@@ -32,6 +32,9 @@
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     border-radius: 5px;
 }
+table.resultTable tr:hover td {
+box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
 </style>
 
 <body>  
@@ -44,6 +47,7 @@
 <script>
 var dataLayer;
 var jsonData;
+var mapFeatures;
 var zipcode;
 var state;
 var medical = false;
@@ -112,7 +116,8 @@ function submitForm(){
     state = $("#state").val();
     zipcode = $("#zipcode").val();
     medical = $('#medical').prop('checked');
-    displayTable(getFeaturesInView());
+    getFeaturesInView();
+    makeTable();
     alert(state+"\n"+zipcode+"\n"+medical+"\n");
         if(zipcode){
             dataToMap(jsonData, map, userFilter);
@@ -130,44 +135,53 @@ function getFeaturesInView() {
       }
     }
   });
-  return features;
+  mapFeatures = features;
 }
+var count;
+var resultTable;  // CREATING INFO VARIABLE IN GLOBAL ENVIRONMENT
+function makeTable() {
+    count = 0;
+    // REMOVING PREVIOUS INFO BOX
+    if (resultTable != undefined) {
+    resultTable.remove(map)
+    }
 
-function displayTable(features){
+    // making current layer's info box
+    resultTable = L.control({position:'topleft'});
 
-    var featuresInView = features;
+    resultTable.onAdd = function (map) {
+    this._table = L.DomUtil.create('table', 'resultTable');
+    this._table.innerHTML = '<tr><th></th><th>Institution</th></tr>'
+    this.update(mapFeatures);
+    return this._table;
+    };
 
-    if(resultTable!==undefined)
-        resultTable.removeFrom(map);
+    resultTable.update = function (featureList) {
+       
+        if(featureList)
+        {
+            length = featureList.length;
+                if(length>20)
+                    length=20;
+            for(i=0; i<length; i++)
+            {
+                count += 1;
+                this._table.innerHTML += '<tr><td>'+count+'</td><td>'+featureList[i].properties["Institution Name"]+'</td><tr>';        
+            }
+        
+        }
+        else
+        {
+            this._table.innerHTML += '<tr><td>No Data</td><tr>'; 
+        }
+    if(length==20)
+        this._table.innerHTML += '<tr><td><b> . . . </b></td><tr>';
+    this._table.innerHTML += '</table>';
+    };
 
-    var resultTable = L.Control.extend({
-            options: {
-                position: 'bottomleft'
-            },
+    resultTable.addTo(map);
 
-            onAdd: function (map) {
-                this._div = L.DomUtil.create('div', 'resultTable');
-                this._div.innerHTML = '<h3>Find Something</h3>';
-                this._div.innerHTML += '<table id="resultTable"><tr><th>Name</th></tr>';
-                if(featuresInView!==undefined)
-                {
-                    this._div.innerHTML += '<tr><td>1</td></tr>';
-                }
-                else
-                {
-                    this._div.innerHTML += '<tr><td>default table</td></tr>';
-                }
-                this._div.innerHTML += '</table>';
-                return this._div;     
-            },
-            onRemove: function (map) {
-            // Remove reference from map
-                delete map.resultTable;
-             },
-        });
-        map.addControl(new resultTable());
-}
-//End of functions 
+} // end function
 
 $.getJSON("test.geojson", function(data) { jsonData = data;  dataToMap(data, map, userFilter);});
 
@@ -213,30 +227,33 @@ var mainMenu = L.Control.extend({
                 this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
                 this._div.innerHTML += '<hr>'
                 this._div.innerHTML += '<h3>Filter Details</h3>';
-                this._div.innerHTML += '<Label>State: </Label><select name="state" id="state">'+
-                        '<option value="All">All' +
-                        '<option value="Texas">Texas' +
-                        '<option value="California">California' +
-                        '<option value="New York">New York' +
+                this._div.innerHTML += '<Label>Department</Label><select name="dept" id="dept">'+
+                        '<option value="BIO">Biological Sciences' +
+                        '<option value="BIOCHEM">Chemistry and Biochemisty' +
+                        '<option value="MATH">Mathematics' +
+                        '<option value="MUSIC">Music' +
+                        '<option value="PHYS">Physics' +
+                        '<option value="PSYCH">Psychology' +
+                        '<option value="ENG">Engineering' +
+                        '<option value="COMP">Computer Science' +
                         '</select>';
-                this._div.innerHTML += '<br>or<br>';
-                this._div.innerHTML += '<Label>ZIP Code: </Label><input type="text" pattern="[0-9]{5}" style="width:75px" title="zipcode" id="zipcode"/>'
-                 this._div.innerHTML += '<br><Label>Radius: </Label><select name="radius" id="radius">'+
-                        '<option value="">No Limit' +
-                        '<option value="10">10 miles' +
-                        '<option value="50">50 miles' +
-                        '<option value="100">100 miles' +
-                        '<option value="200">200 miles' +
-                        '<option value="500">500 miles' +
-                        '</select>'
-                this._div.innerHTML += '<input type="checkbox" id="medical"><Label>Medical School</Label>';
+                  this._div.innerHTML += '<br><Label>Focus</Label><select name="focus" id="focus">'+
+                        '<option value="ROBO">Robotics' +
+                        '<option value="IMMU">Immunology' +
+                        '<option value="CANC">Cancer Bio' +
+                        '<option value="PHYSO">Physiology' +
+                        '<option value="MCLR">Machine Learning' +
+                        '<option value="DATA">Big Data' +
+                        '<option value="ASTRO">Astrophysics' +
+                        '<option value="CLISCI">Climate Science' +
+                        '</select>';
                 this._div.innerHTML += '<hr>'
                 this._div.innerHTML += '<br><input type="submit" id="submit" value="Update Map" onclick="submitForm()""></form>';
                 return this._div;        
             }, 
         });
         map.addControl(new mainMenu());
-
-displayTable();
-
+ 
+makeTable();
+var interval = setInterval(function(){getFeaturesInView();makeTable();}, 100);
 </script>

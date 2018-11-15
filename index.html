@@ -15,31 +15,61 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
+<link href="https://fonts.googleapis.com/css?family=Montserrat" rel="stylesheet">
+
 <style>
+html, body {
+   height: 100%;
+}
+#heading{
+
+}
+#title{
+font-family: 'Montserrat', sans-serif;
+background-size: 100%;
+}
 .container{
-  position: relative;
-  width: 100%;
+padding: 5%;
+margin: auto;
+position: relative;
+width: 100%;
 }
 #map{
     width:90%;
-    height:90%;
+    height:80%;
 }
 .mainMenu, .resultTable{
     padding: 6px 8px;
-    font: 14px/16px Arial, Helvetica, sans-serif;
+    font-family: 'helvetica', sans-serif;
     background: white;
     background: rgba(255, 255, 255, 0.8);
     box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
     border-radius: 5px;
+    width: 90%;
 }
-table.resultTable tr:hover td {
-box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+.resultTable{
+        cursor: pointer;
 }
+table{
+    border: none;
+}
+tbody {
+    height:500px;
+    overflow: auto;
+}
+tr{
+
+    background-color: white; 
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
+}
+tr:hover{
+    background-color: #f9f9f9; 
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.1);
 </style>
 
 <body>  
     <div class="container">
-        <h1>mapApp</h1>
+        <div id="heading"><text id="title">mapApp</text></div>
 		<div id="map"></div>
     </div>
 </body>
@@ -54,12 +84,17 @@ var medical = false;
 
 var map = L.map('map',{
     center: [33.5843, -101.8783],
-    zoom: 6
+    zoom: 6,
+    zoomControl: false,
     });
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 18
+    maxZoom: 18,
+}).addTo(map);
+
+L.control.zoom({
+     position:'bottomleft'
 }).addTo(map);
 
 map.doubleClickZoom.disable(); 
@@ -116,9 +151,10 @@ function submitForm(){
     state = $("#state").val();
     zipcode = $("#zipcode").val();
     medical = $('#medical').prop('checked');
+    //alert(state+"\n"+zipcode+"\n"+medical+"\n");
     getFeaturesInView();
-    makeTable();
-    alert(state+"\n"+zipcode+"\n"+medical+"\n");
+    updateTable();
+    resultTable.update(mapFeatures);
         if(zipcode){
             dataToMap(jsonData, map, userFilter);
             }
@@ -139,7 +175,8 @@ function getFeaturesInView() {
 }
 var count;
 var resultTable;  // CREATING INFO VARIABLE IN GLOBAL ENVIRONMENT
-function makeTable() {
+
+function updateTable() {
     count = 0;
     // REMOVING PREVIOUS INFO BOX
     if (resultTable != undefined) {
@@ -147,12 +184,11 @@ function makeTable() {
     }
 
     // making current layer's info box
-    resultTable = L.control({position:'topleft'});
+    resultTable = L.control({position:'topright'});
 
     resultTable.onAdd = function (map) {
     this._table = L.DomUtil.create('table', 'resultTable');
-    this._table.innerHTML = '<tr><th></th><th>Institution</th></tr>'
-    this.update(mapFeatures);
+    this._table.innerHTML = '<tr><th></th><th>Institution</th></tr><tbody>'
     return this._table;
     };
 
@@ -161,12 +197,12 @@ function makeTable() {
         if(featureList)
         {
             length = featureList.length;
-                if(length>20)
-                    length=20;
+                if(length>15)
+                    length=15;
             for(i=0; i<length; i++)
             {
                 count += 1;
-                this._table.innerHTML += '<tr><td>'+count+'</td><td>'+featureList[i].properties["Institution Name"]+'</td><tr>';        
+                this._table.innerHTML += '<div><tr><td>'+count+'</td><td>'+featureList[i].properties["Institution Name"]+'</td><tr></div>';        
             }
         
         }
@@ -174,9 +210,9 @@ function makeTable() {
         {
             this._table.innerHTML += '<tr><td>No Data</td><tr>'; 
         }
-    if(length==20)
-        this._table.innerHTML += '<tr><td><b> . . . </b></td><tr>';
-    this._table.innerHTML += '</table>';
+    if(length==15)
+        this._table.innerHTML += '<tr><td></td><td><b>&nbsp;&nbsp; . . . </b></td><tr>';
+    this._table.innerHTML += '</tbody></table>';
     };
 
     resultTable.addTo(map);
@@ -186,7 +222,7 @@ function makeTable() {
 $.getJSON("test.geojson", function(data) { jsonData = data;  dataToMap(data, map, userFilter);});
 
 var geocoder = L.Control.geocoder({
-        defaultMarkGeocode: false
+        defaultMarkGeocode: false,position: 'topleft',collapsed:false
     })
     .on('markgeocode', function(e) {
         var bbox = e.geocode.bbox;
@@ -201,7 +237,7 @@ var geocoder = L.Control.geocoder({
 
 var mainMenu = L.Control.extend({
             options: {
-                position: 'topright'
+                position: 'topleft'
             },
 
             onAdd: function (map) {
@@ -253,7 +289,5 @@ var mainMenu = L.Control.extend({
             }, 
         });
         map.addControl(new mainMenu());
- 
-makeTable();
-var interval = setInterval(function(){getFeaturesInView();makeTable();}, 100);
+
 </script>
